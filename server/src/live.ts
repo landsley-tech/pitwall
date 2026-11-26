@@ -110,6 +110,7 @@ export function toSession(info: any): SessionMeta | null {
     year: info.StartDate ? Number(String(info.StartDate).slice(0, 4)) : new Date().getFullYear(),
     dateStart: info.StartDate ? toUtc(info.StartDate) : '',
     dateEnd: info.EndDate ? toUtc(info.EndDate) : '',
+    meetingKey: Number(info.Meeting.Key) || undefined,
   };
 }
 

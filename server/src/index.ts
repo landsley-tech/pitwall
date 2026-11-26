@@ -1,5 +1,6 @@
 // Pitwall server: JSON API for sessions and replays, a WebSocket for live
 // timing, and the built web app.
+import './env.ts';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import http from 'node:http';
@@ -7,12 +8,24 @@ import path from 'node:path';
 import { WebSocketServer } from 'ws';
 import { getCircuit } from './circuit.ts';
 import { LiveFeed } from './live.ts';
+import { createOnboard } from './onboard.ts';
 import { openf1 } from './openf1.ts';
 import { WEB_DIST } from './paths.ts';
 import { getReplay, sessionMetaFrom } from './replay.ts';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const live = new LiveFeed();
+
+// onboard cameras through the MultiViewer desktop app (see README "Onboard cameras")
+const onboard = createOnboard({
+  mvUrl: process.env.MULTIVIEWER_URL ?? 'http://localhost:10101/api/graphql',
+  metaBase: 'https://api.multiviewer.app',
+  allowRemote: process.env.PITWALL_REMOTE_CONTROL === '1',
+  lookupMeeting: async (sessionKey) => {
+    const [s] = await openf1('sessions', { session_key: sessionKey });
+    return Number(s?.meeting_key) || null;
+  },
+});
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -94,6 +107,8 @@ const server = http.createServer(async (req, res) => {
     m = /^\/api\/circuit\/(\d+)\/(\d+)$/.exec(url.pathname);
     if (m) return json(res, 200, await getCircuit(Number(m[1]), Number(m[2])));
 
+    if (await onboard.handle(req, res, url)) return;
+
     if (url.pathname.startsWith('/api/')) return json(res, 404, { error: 'not found' });
     return serveStatic(req, res);
   } catch (err) {
@@ -112,4 +127,7 @@ wss.on('connection', (socket) => {
 
 server.listen(PORT, () => {
   console.log(`Pitwall server on http://localhost:${PORT}`);
+  onboard.status().then((s) =>
+    console.log(s.available ? `MultiViewer ${s.version ?? ''} found, onboard cameras ready` : 'MultiViewer not running, onboard cameras off until it is'),
+  );
 });

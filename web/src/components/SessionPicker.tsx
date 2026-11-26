@@ -62,7 +62,7 @@ export function SessionPicker({ onReplay, onLive }: Props) {
           <h1>Race data, the way the pit wall sees it.</h1>
           <p className="muted">
             Live track map, timing tower, tyre strategy and race control for any session. Replay past races at up to 25× speed,
-            or follow a session as it happens.
+            follow a session as it happens, and put every car's onboard on screen with F1 TV.
           </p>
         </div>
         <button className={`live-card${liveNow ? ' on' : ''}`} onClick={onLive}>
@@ -83,12 +83,16 @@ export function SessionPicker({ onReplay, onLive }: Props) {
       {!sessions && !error && <div className="muted pad">Loading {year} season…</div>}
 
       <div className="meetings">
-        {meetings.map((list) => {
+        {meetings.map((list, i) => {
           const m = list[0];
           const done = list.filter((s) => Date.parse(s.dateEnd) + 30 * 60_000 < now);
           const upcoming = done.length === 0;
           return (
-            <article key={`${m.meeting}-${m.circuitKey}`} className={`meeting${upcoming ? ' upcoming' : ''}`}>
+            <article
+              key={`${m.meeting}-${m.circuitKey}`}
+              className={`meeting${upcoming ? ' upcoming' : ''}`}
+              style={{ ['--i' as string]: Math.min(i, 16) }}
+            >
               <div className="meeting-head">
                 <span className="cc mono">{m.countryCode}</span>
                 <div>

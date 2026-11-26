@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { DriverInfo, RaceState } from '@shared/types';
 import { fmtLap } from '../lib/format';
+import { CamIcon } from './OnboardDrawer';
 import { TyreBadge } from './TyreBadge';
 
 interface Props {
@@ -9,11 +10,12 @@ interface Props {
   selected: string | null;
   onSelect: (num: string | null) => void;
   isRace: boolean;
+  onWatch?: (num: string) => void;
 }
 
 const ROW_H = 34;
 
-export function TimingTower({ state, drivers, selected, onSelect, isRace }: Props) {
+export function TimingTower({ state, drivers, selected, onSelect, isRace, onWatch }: Props) {
   const [showGap, setShowGap] = useState(false);
   const byNum = new Map(drivers.map((d) => [d.num, d]));
   // Render in a stable order (by car number) and move rows with transforms,
@@ -45,11 +47,14 @@ export function TimingTower({ state, drivers, selected, onSelect, isRace }: Prop
             <div
               key={r.num}
               className={`tower-row${selected === r.num ? ' selected' : ''}${r.out ? ' out' : ''}`}
-              style={{ transform: `translateY(${i * ROW_H}px)` }}
+              style={{ transform: `translateY(${i * ROW_H}px)`, ['--team' as string]: d?.colour }}
               onClick={() => onSelect(selected === r.num ? null : r.num)}
             >
               <span className="c-pos">
-                <span className="pos-num">{r.out ? '—' : r.position ?? '·'}</span>
+                {/* keyed on position so the number flashes when it changes */}
+                <span key={r.position ?? 'x'} className={`pos-num${delta > 0 ? ' gained' : delta < 0 ? ' lost' : ''}`}>
+                  {r.out ? '—' : r.position ?? '·'}
+                </span>
                 {delta !== 0 && (
                   <span className={`pos-delta ${delta > 0 ? 'up' : 'down'}`}>
                     {delta > 0 ? '▲' : '▼'}
@@ -72,6 +77,19 @@ export function TimingTower({ state, drivers, selected, onSelect, isRace }: Prop
                 <span className="mono tyre-age">{r.tyreAge ?? ''}</span>
               </span>
               <span className="c-pit mono">{r.pits || ''}</span>
+              {onWatch && !r.out && (
+                <button
+                  className="row-cam"
+                  title={`Watch ${d?.code ?? r.num}'s onboard`}
+                  aria-label={`Watch ${d?.code ?? r.num}'s onboard`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onWatch(r.num);
+                  }}
+                >
+                  <CamIcon size={14} />
+                </button>
+              )}
             </div>
           );
         })}

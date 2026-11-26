@@ -121,6 +121,7 @@ function ReplayPlayer({ data, onBack }: { data: ReplayData; onBack: () => void }
       totalLaps={data.totalLaps}
       clock={fmtClock(t - data.startAt)}
       lapHistory={lapHistory}
+      replayClock={{ epoch: data.t0 + t, playing, speed }}
       mapNote={data.track ? null : 'No track outline available for this session'}
       onBack={onBack}
       footer={

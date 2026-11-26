@@ -1,5 +1,6 @@
 import type { DriverInfo, DriverRow, RcMessage, ReplayLap, Weather } from '@shared/types';
 import { fmtLap, fmtSector, fmtTimeOfDay } from '../lib/format';
+import { CamIcon } from './OnboardDrawer';
 import { TyreBadge } from './TyreBadge';
 
 export function DriverCard({
@@ -7,11 +8,13 @@ export function DriverCard({
   row,
   history,
   onClose,
+  onWatch,
 }: {
   driver: DriverInfo;
   row: DriverRow | undefined;
   history: ReplayLap[] | null;
   onClose: () => void;
+  onWatch?: () => void;
 }) {
   const recent = history ? history.slice(-6).reverse() : null;
   const best = history ? Math.min(...history.map((l) => l.dur ?? Infinity)) : null;
@@ -47,6 +50,13 @@ export function DriverCard({
         />
         <Stat label="Pit stops" value={String(row?.pits ?? 0)} />
       </div>
+      {onWatch && (
+        <button className="watch-btn" onClick={onWatch}>
+          <CamIcon />
+          Watch onboard
+          <span className="watch-sub muted">opens in MultiViewer</span>
+        </button>
+      )}
       <div className="sector-row">
         {(row?.sectors ?? [null, null, null]).slice(0, 3).map((s, i) => (
           <div key={i} className="sector">

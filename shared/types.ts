@@ -25,6 +25,8 @@ export interface SessionMeta {
   year: number;
   dateStart: string;
   dateEnd: string;
+  /** F1 meeting key (same in OpenF1, the live feed and MultiViewer); missing in older cached replays */
+  meetingKey?: number;
 }
 
 export interface DriverInfo {
@@ -181,3 +183,62 @@ export type LiveMessage =
     }
   | { type: 'positions'; ts: number; cars: CarPos[] }
   | { type: 'status'; connected: boolean; message: string };
+
+// ---------- Onboard cameras (MultiViewer + F1 TV) ----------
+
+/** A video feed to open: one driver's onboard, or a main channel like F1 LIVE. */
+export type OnboardFeed = { kind: 'driver'; num: number } | { kind: 'main'; title: MainFeedTitle };
+
+export const MAIN_FEEDS = ['F1 LIVE', 'INTERNATIONAL', 'TRACKER', 'DATA'] as const;
+export type MainFeedTitle = (typeof MAIN_FEEDS)[number];
+
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface OnboardPlayer {
+  id: string;
+  title: string | null;
+  driverNumber: number | null;
+  tla: string | null;
+  contentId: string | null;
+}
+
+export interface OnboardStatus {
+  /** MultiViewer answered on its local API */
+  available: boolean;
+  version: string | null;
+  players: OnboardPlayer[];
+  /** onboard control is turned off for this client (not on this machine) */
+  remoteBlocked?: boolean;
+  error?: string;
+}
+
+/** The F1 TV video for a session, from MultiViewer's meeting data. */
+export interface OnboardSession {
+  contentId: string;
+  title: string;
+  /** seconds into the video where the session starts, for replay sync */
+  videoStart: number | null;
+  /** epoch ms of that same moment */
+  wallStart: number | null;
+}
+
+export type OnboardLayout = 'grid' | 'feature';
+
+export interface OnboardOpenRequest {
+  contentId: string;
+  feeds: OnboardFeed[];
+  /** screen area to tile, in screen pixels; omitted = let MultiViewer place the window */
+  area?: Rect;
+  layout: OnboardLayout;
+  /** close the players that are already open first */
+  replace: boolean;
+}
+
+export type OnboardControl =
+  | { action: 'sync' | 'play' | 'pause' | 'mute' | 'unmute' | 'close' }
+  | { action: 'seek'; seconds: number };

@@ -1,6 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { CarPos, DriverInfo, RaceState, ReplayLap, SessionMeta, TrackInfo } from '@shared/types';
 import { STATUS_LABEL } from '../lib/format';
+import { useOnboard, useReplayFollow, type ReplayClock } from '../lib/onboard';
+import { CamIcon, OnboardDrawer, Toaster } from './OnboardDrawer';
 import { DriverCard, RaceControl, WeatherCard } from './SidePanels';
 import { StrategyChart } from './StrategyChart';
 import { TimingTower } from './TimingTower';
@@ -22,6 +24,8 @@ interface Props {
   lapHistory?: (num: string) => ReplayLap[];
   footer?: ReactNode;
   banner?: ReactNode;
+  /** replay position, so onboard windows can follow it */
+  replayClock?: ReplayClock;
   onBack: () => void;
 }
 
@@ -31,6 +35,31 @@ export function Dashboard(p: Props) {
   const s = p.state;
   const selDriver = selected ? p.drivers.find((d) => d.num === selected) : undefined;
   const selRow = selected ? s.rows.find((r) => r.num === selected) : undefined;
+
+  // ?onboards opens the drawer straight away, handy for a bookmark on the TV machine
+  const [obOpen, setObOpen] = useState(() => new URLSearchParams(location.search).has('onboards'));
+  const [follow, setFollow] = useState(true);
+  const onboard = useOnboard(p.session, obOpen);
+  const obPlayers = onboard.status?.players.length ?? 0;
+  const playerKey = (onboard.status?.players ?? []).map((x) => x.id).sort().join(',');
+  const followActive = useReplayFollow(follow && p.mode === 'replay', p.replayClock, onboard.video, playerKey, onboard.control);
+
+  // one car's onboard in its own window; without MultiViewer, show the setup steps instead
+  const watch = (num: string) => {
+    if (!onboard.status?.available) return setObOpen(true);
+    onboard.open([{ kind: 'driver', num: Number(num) }]);
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'o' || e.key === 'O') setObOpen((v) => !v);
+      else if (e.key === 'Escape') setObOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <div className={`dash status-${s.trackStatus.toLowerCase()}`}>
@@ -71,6 +100,19 @@ export function Dashboard(p: Props) {
 
         <div className="top-right">
           {p.isRace && <div className="clock mono">{p.clock}</div>}
+          <button
+            className={`ob-btn${obOpen ? ' active' : ''}${onboard.status?.available ? ' ready' : ''}`}
+            onClick={() => setObOpen((v) => !v)}
+            title="Onboard cameras (O)"
+          >
+            <CamIcon />
+            <span>Onboards</span>
+            {obPlayers > 0 && (
+              <span key={obPlayers} className="ob-count mono">
+                {obPlayers}
+              </span>
+            )}
+          </button>
           <span className={`mode-chip ${p.mode}`}>{p.mode === 'live' ? '● Live' : 'Replay'}</span>
         </div>
       </header>
@@ -78,7 +120,7 @@ export function Dashboard(p: Props) {
       {p.banner}
 
       <main className="grid">
-        <TimingTower state={s} drivers={p.drivers} selected={selected} onSelect={setSelected} isRace={p.isRace} />
+        <TimingTower state={s} drivers={p.drivers} selected={selected} onSelect={setSelected} isRace={p.isRace} onWatch={watch} />
 
         <section className="panel map-panel">
           <TrackMap
@@ -97,10 +139,12 @@ export function Dashboard(p: Props) {
         <aside className="side">
           {selDriver && (
             <DriverCard
+              key={selDriver.num}
               driver={selDriver}
               row={selRow}
               history={p.lapHistory ? p.lapHistory(selDriver.num) : null}
               onClose={() => setSelected(null)}
+              onWatch={() => watch(selDriver.num)}
             />
           )}
           <WeatherCard weather={s.weather} />
@@ -116,6 +160,20 @@ export function Dashboard(p: Props) {
       </main>
 
       {p.footer}
+
+      <OnboardDrawer
+        open={obOpen}
+        onClose={() => setObOpen(false)}
+        mode={p.mode}
+        drivers={p.drivers}
+        rows={s.rows}
+        selected={selected}
+        onboard={onboard}
+        follow={follow}
+        onFollow={setFollow}
+        followActive={followActive}
+      />
+      <Toaster toasts={onboard.toasts} />
     </div>
   );
 }

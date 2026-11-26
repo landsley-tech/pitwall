@@ -61,6 +61,7 @@ export function sessionMetaFrom(s: any, meetingName?: string): SessionMeta {
     year: s.year,
     dateStart: s.date_start,
     dateEnd: s.date_end,
+    meetingKey: s.meeting_key ?? undefined,
   };
 }
 

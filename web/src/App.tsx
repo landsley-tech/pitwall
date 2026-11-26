@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { SessionMeta } from '@shared/types';
 import { SessionPicker } from './components/SessionPicker';
 import { LiveView } from './views/LiveView';
@@ -21,8 +22,17 @@ function readHash(): Route | null {
   return null;
 }
 
+// cross-fade between screens where the browser supports view transitions
+function withTransition(update: () => void) {
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (!doc.startViewTransition || reduce) return update();
+  doc.startViewTransition(() => flushSync(update));
+}
+
 export default function App() {
-  const [route, setRoute] = useState<Route>(() => readHash() ?? { view: 'home' });
+  const [route, setRouteRaw] = useState<Route>(() => readHash() ?? { view: 'home' });
+  const setRoute = useCallback((r: Route) => withTransition(() => setRouteRaw(r)), []);
 
   useEffect(() => {
     const h =
